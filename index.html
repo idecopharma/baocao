@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ĐÁNH GIÁ KPI THÁNG</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.16.9/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            padding: 0; 
+            background-color: #f0f0f0; 
+            display: flex;
+        }
+        .container { 
+            display: flex; 
+            width: 100%; 
+            min-height: 100vh; 
+        }
+        .main-content { 
+            flex-grow: 1; 
+            padding: 20px; 
+            overflow-y: auto;
+        }
+        .sidebar { 
+            width: 250px; 
+            background-color: #333; 
+            color: white; 
+            padding: 20px; 
+            display: flex;
+            flex-direction: column;
+        }
+        h1, h2 { 
+            color: #333; 
+            margin-bottom: 20px; 
+        }
+        input, select { 
+            margin: 5px 0; 
+            padding: 5px; 
+            width: 100%; 
+        }
+        button { 
+            background-color: #ff0000; 
+            color: white; 
+            border: none; 
+            cursor: pointer; 
+            padding: 10px; 
+            margin: 5px 0; 
+            width: 100%;
+        }
+        button:hover { 
+            background-color: #cc0000; 
+        }
+        .analysisEditor { 
+            border: 1px solid #ccc; 
+            min-height: 100px; 
+            padding: 10px; 
+            margin-bottom: 10px; 
+            resize: horizontal;
+            overflow: auto;
+        }
+        .result { 
+            background-color: #e0e0e0; 
+            padding: 10px; 
+            margin-top: 10px; 
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        #emailLinkContainer {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #e0e0e0;
+        }
+        #openEmailBtn {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            text-decoration: none;
+            text-align: center;
+            border-radius: 5px;
+            margin-top: 5px;
+        }
+        #openEmailBtn:hover {
+            background-color: #45a049;
+        }
+        #popupButton {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 10px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            width: 60px;
+            height: 60px;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1001;
+        }
+        #popupContainer {
+            display: none;
+            position: fixed;
+            bottom: 90px;
+            right: 20px;
+            width: 350px;
+            height: 500px;
+            background-color: white;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+            z-index: 1000;
+            overflow: hidden;
+            resize: both;
+        }
+        #popupHeader {
+            height: 30px;
+            background-color: #f0f0f0;
+            cursor: move;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 10px;
+        }
+        #closePopup, #expandPopup {
+            cursor: pointer;
+            font-size: 20px;
+            color: #333;
+            margin-left: 10px;
+        }
+        #popupFrame {
+            width: 100%;
+            height: calc(100% - 30px);
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="main-content">
+            <h1>BÁO CÁO ĐÁNH GIÁ KPI THÁNG</h1>
+            
+            <div class="input-group">
+                <h2>Thông tin khai báo</h2>
+                <input type="text" id="nguoiLap" placeholder="Người lập:">
+                <input type="text" id="boPhanLap" placeholder="Bộ phận lập:">
+                <input type="date" id="ngayLap">
+            </div>
+
+            <div class="input-group">
+                <h2>Doanh Thu Nhóm không phải thuốc</h2>
+                <input type="number" id="doanhThuTruoc" placeholder="Doanh thu kỳ trước">
+                <input type="number" id="doanhThuNay" placeholder="Doanh thu kỳ này">
+                <div id="ketQuaDoanhThu" class="result"></div>
+                <div class="analysisEditor" contenteditable="true" data-placeholder="Nhập phân tích doanh thu ở đây..."></div>
+            </div>
+
+            <div class="input-group">
+                <h2>Doanh Thu Thuần Nhóm Thuốc - Hãy vào đơn hàng trong kỳ ERP chạy nhóm thuốc</h2>
+                <input type="number" id="dtThuocTruoc" placeholder="Doanh thu thuần nhóm thuốc kỳ trước">
+                <input type="number" id="dtThuocNay" placeholder="Doanh thu thuần nhóm thuốc kỳ này">
+                <div id="ketQuaDTThuoc" class="result"></div>
+                <div class="analysisEditor" contenteditable="true" data-placeholder="Nhập phân tích doanh thu thuốc ở đây..."></div>
+            </div>
+
+            <div class="input-group">
+                <h2>Khách hàng đã đặt hàng trên ERP- Hãy vào đơn hàng ERP chạy dữ liệu </h2>
+                <input type="number" id="khachHangTruoc" placeholder="Số khách hàng kỳ trước">
+                <input type="number" id="khachHangNay" placeholder="Số khách hàng kỳ này">
+                <div id="ketQuaKhachHang" class="result"></div>
+                <div class="analysisEditor" contenteditable="true" data-placeholder="Nhập phân tích khách hàng ở đây..."></div>
+            </div>
+
+            <div class="input-group">
+                <h2>Số khách hàng mới chốt hợp tác/nhân viên - Mục tiêu mặc định tối thiểu> 6 khách hàng tháng</h2>
+                <input type="number" id="khachHangMoiNhaThuoc" placeholder="Số khách hàng mới nhà thuốc">
+                <input type="number" id="khachHangDaiLy" placeholder="Số khách hàng đại lý phân phối">
+                <input type="number" id="sanPhamMoi" placeholder="Số sản phẩm mới vào chuỗi thành công">
+                <input type="number" id="khachHangKhac" placeholder="Số khách hàng khác">
+                <div class="analysisEditor" contenteditable="true" data-placeholder="Nhập phân tích khách hàng mới ở đây..."></div>
+            </div>
+
+            <div class="input-group">
+                <h2>Tổng thu gồm doanh thu tiền mặt và số thu trả nợ trong kỳ và số đơn giao thành công</h2>
+                <input type="number" id="tongThuTien" placeholder="Tổng thu tiền kỳ này">
+                <input type="number" id="donHangToanQuoc" placeholder="Số đơn hàng giao thành công toàn quốc">
+                <input type="number" id="donHangHCM" placeholder="Số đơn hàng giao thành công tại TP.HCM">
+                <div class="analysisEditor" contenteditable="true" data-placeholder="Nhập phân tích tổng thu ở đây..."></div>
+            </div>
+
+            <div class="input-group">
+                <h2>Tổng Chi Phí Bán Hàng / Doanh Thu Thuần - Kiểm soát chi phí giá vốn - chi phí bán hàng </h2>
+                <input type="number" id="tiLeTruoc" placeholder="Tỉ lệ kỳ trước (%)">
+                <input type="number" id="tiLeNay" placeholder="Tỉ lệ kỳ này (%)">
+                <div id="ketQuaTiLe" class="result"></div>
+                <div class="analysisEditor" contenteditable="true" data-placeholder="Nhập phân tích tỉ lệ chi phí ở đây..."></div>
+            </div>
+
+            <div class="input-group">
+                <h2>Lợi Nhuận Gộp Kế Toán / Doanh Thu Thuần </h2>
+                <input type="number" id="loiNhuanKeToan" placeholder="Lợi nhuận kế toán">
+                <input type="number" id="doanhThuThuan" placeholder="Doanh thu thuần">
+                <div id="ketQuaLoiNhuan" class="result"></div>
+                <div class="analysisEditor" contenteditable="true" data-placeholder="Nhập phân tích lợi nhuận ở đây..."></div>
+            </div>
+
+            <div class="input-group">
+                <h2>Doanh Thu Theo Nhóm Sản Phẩm từ việc khai thác khách hàng mới hay sản phẩm mới trong kỳ</h2>
+                <input type="number" id="dtNonDrugKHMoi" placeholder="Doanh thu nhóm non drug từ khách hàng mới/nhân viên">
+                <input type="number" id="dtThuocKHMoi" placeholder="Doanh thu nhóm thuốc từ khách hàng mới/nhân viên">
+                <input type="number" id="dtThuocSPMoi" placeholder="Doanh thu nhóm thuốc từ sản phẩm mới/nhân viên">
+                <input type="number" id="dtNonDrugSPMoi" placeholder="Doanh thu nhóm non drug từ sản phẩm/nhân viên">
+                <div class="analysisEditor" contenteditable="true" data-placeholder="Nhập phân tích doanh thu theo nhóm sản phẩm ở đây..."></div>
+            </div>
+
+            <div class="input-group">
+                <h2>Tính Hoa Hồng Doanh Số</h2>
+                <input type="number" id="phanTramHoaHongNonDrug" placeholder="% Hoa hồng cho nhóm non drug">
+                <input type="number" id="phanTramHoaHongThuoc" placeholder="% Hoa hồng cho nhóm thuốc">
+                <button onclick="tinhHoaHong()">Tính Hoa Hồng</button>
+                <div id="ketQuaHoaHongNonDrug" class="result"></div>
+                <div id="ketQuaHoaHongThuoc" class="result"></div>
+                <div class="analysisEditor" contenteditable="true" data-placeholder="Nhập phân tích hoa hồng ở đây..."></div>
+            </div>
+
+            <div class="input-group">
+                <h2>Báo cáo KPI khác và phân tích cụ thể công việc giao trong kỳ theo bảng KPI đã lập</h2>
+                <div class="analysisEditor" contenteditable="true" data-placeholder="Trình bày công việc giao KPI trong tháng"></div>
+            </div>
+
+            <div id="emailLinkContainer"></div>
+        </div>
+        
+        <div class="sidebar">
+            <h2>Chức năng</h2>
+            <button onclick="tinhTatCa()">Tính toán tất cả</button>
+            <button onclick="luuDuLieu()">Lưu dữ liệu</button>
+            <button onclick="xuatExcel()">Xuất Excel</button>
+            <button onclick="xuatWord()">Xuất Word</button>
+            <button onclick="thayDoiFont()">Đổi Font</button>
+            <button onclick="thayDoiMau()">Đổi Màu</button>
+            <button onclick="generateEmailLink()">Gửi Email</button>
+        </div>
+    </div>
+
+    <button id="popupButton">+</button>
+
+    <div id="popupContainer">
+        <div id="popupHeader">
+            <span id="expandPopup">&#x26F6;</span>
+            <span id="closePopup">&times;</span>
+        </div>
+        <iframe id="popupFrame" src="https://erp-ideco.skyit.vn"></iframe>
+        <div class="resizer"></div>
+    </div>
+    
+    <script>
+        document.getElementById('ngayLap').valueAsDate = new Date();
+
+        function tinhTangTruong(truoc, nay) {
+            return ((nay - truoc) / truoc) * 100;
+        }
+
+        function tinhTangTruongDoanhThu() {
+            const truoc = parseFloat(document.getElementById('doanhThuTruoc').value) || 0;
+            const nay = parseFloat(document.getElementById('doanhThuNay').value) || 0;
+            const tangTruong = tinhTangTruong(truoc, nay);
+            document.getElementById('ketQuaDoanhThu').textContent = `Tăng trưởng doanh thu: ${tangTruong.toFixed(2)}%`;
+            return tangTruong.toFixed(2);
+        }
+
+        function tinhTangTruongKhachHang() {
+            const truoc = parseFloat(document.getElementById('khachHangTruoc').value) || 0;
+            const nay = parseFloat(document.getElementById('khachHangNay').value) || 0;
+            const tangTruong = tinhTangTruong(truoc, nay);
+            document.getElementById('ketQuaKhachHang').textContent = `Tăng trưởng khách hàng: ${tangTruong.toFixed(2)}%`;
+            return tangTruong.toFixed(2);
+        }
+
+        function tinhTangTruongTiLe() {
+            const truoc = parseFloat(document.getElementById('tiLeTruoc').value) || 0;
+            const nay = parseFloat(document.getElementById('tiLeNay').value) || 0;
+            const tangTruong = tinhTangTruong(truoc, nay);
+            document.getElementById('ketQuaTiLe').textContent = `Tăng trưởng tỉ lệ: ${tangTruong.toFixed(2)}%`;
+            return tangTruong.toFixed(2);
+        }
+
+        function tinhTangTruongDTThuoc() {
+            const truoc = parseFloat(document.getElementById('dtThuocTruoc').value) || 0;
+            const nay = parseFloat(document.getElementById('dtThuocNay').value) || 0;
+            const tangTruong = tinhTangTruong(truoc, nay);
+            document.getElementById('ketQuaDTThuoc').textContent = `Tăng trưởng doanh thu thuần nhóm thuốc: ${tangTruong.toFixed(2)}%`;
+            return tangTruong.toFixed(2);
+        }
+
+       function tinhTiLeLoiNhuan() {
+            const loiNhuan = parseFloat(document.getElementById('loiNhuanKeToan').value) || 0;
+            const doanhThu = parseFloat(document.getElementById('doanhThuThuan').value) || 0;
+            const tiLe = doanhThu !== 0 ? (loiNhuan / doanhThu) * 100 : 0;
+            document.getElementById('ketQuaLoiNhuan').textContent = `Tỉ lệ lợi nhuận gộp kế toán / doanh thu thuần: ${tiLe.toFixed(2)}%`;
+            return tiLe.toFixed(2);
+        }
+
+        function tinhHoaHong() {
+            const dtNonDrugKHMoi = parseFloat(document.getElementById('dtNonDrugKHMoi').value) || 0;
+            const dtNonDrugSPMoi = parseFloat(document.getElementById('dtNonDrugSPMoi').value) || 0;
+            const dtThuocKHMoi = parseFloat(document.getElementById('dtThuocKHMoi').value) || 0;
+            const dtThuocSPMoi = parseFloat(document.getElementById('dtThuocSPMoi').value) || 0;
+            const phanTramHoaHongNonDrug = parseFloat(document.getElementById('phanTramHoaHongNonDrug').value) || 0;
+            const phanTramHoaHongThuoc = parseFloat(document.getElementById('phanTramHoaHongThuoc').value) || 0;
+
+            const hoaHongNonDrug = (dtNonDrugKHMoi + dtNonDrugSPMoi) * (phanTramHoaHongNonDrug / 100);
+            const hoaHongThuoc = (dtThuocKHMoi + dtThuocSPMoi) * (phanTramHoaHongThuoc / 100);
+
+            document.getElementById('ketQuaHoaHongNonDrug').textContent = `Hoa hồng nhóm non drug: ${hoaHongNonDrug.toFixed(2)}`;
+            document.getElementById('ketQuaHoaHongThuoc').textContent = `Hoa hồng nhóm thuốc: ${hoaHongThuoc.toFixed(2)}`;
+
+            return { hoaHongNonDrug: hoaHongNonDrug.toFixed(2), hoaHongThuoc: hoaHongThuoc.toFixed(2) };
+        }
+
+        function tinhTatCa() {
+            const doanhThu = tinhTangTruongDoanhThu();
+            const khachHang = tinhTangTruongKhachHang();
+            const tiLe = tinhTangTruongTiLe();
+            const dtThuoc = tinhTangTruongDTThuoc();
+            const loiNhuan = tinhTiLeLoiNhuan();
+            const hoaHong = tinhHoaHong();
+            return { doanhThu, khachHang, tiLe, dtThuoc, loiNhuan, ...hoaHong };
+        }
+
+        function thayDoiFont() {
+            const font = prompt("Nhập tên font chữ:");
+            document.querySelectorAll('.analysisEditor').forEach(editor => {
+                editor.style.fontFamily = font;
+            });
+        }
+
+        function thayDoiMau() {
+            const mau = prompt("Nhập mã màu (ví dụ: #FF0000 cho màu đỏ):");
+            document.querySelectorAll('.analysisEditor').forEach(editor => {
+                editor.style.color = mau;
+            });
+        }
+
+        function luuDuLieu() {
+            const ketQua = tinhTatCa();
+            const duLieu = {
+                nguoiLap: document.getElementById('nguoiLap').value,
+                boPhanLap: document.getElementById('boPhanLap').value,
+                ngayLap: document.getElementById('ngayLap').value,
+                doanhThuTruoc: document.getElementById('doanhThuTruoc').value,
+                doanhThuNay: document.getElementById('doanhThuNay').value,
+                khachHangTruoc: document.getElementById('khachHangTruoc').value,
+                khachHangNay: document.getElementById('khachHangNay').value,
+                tiLeTruoc: document.getElementById('tiLeTruoc').value,
+                tiLeNay: document.getElementById('tiLeNay').value,
+                dtThuocTruoc: document.getElementById('dtThuocTruoc').value,
+                dtThuocNay: document.getElementById('dtThuocNay').value,
+                loiNhuanKeToan: document.getElementById('loiNhuanKeToan').value,
+                doanhThuThuan: document.getElementById('doanhThuThuan').value,
+                khachHangMoiNhaThuoc: document.getElementById('khachHangMoiNhaThuoc').value,
+                khachHangDaiLy: document.getElementById('khachHangDaiLy').value,
+                sanPhamMoi: document.getElementById('sanPhamMoi').value,
+                khachHangKhac: document.getElementById('khachHangKhac').value,
+                dtNonDrugKHMoi: document.getElementById('dtNonDrugKHMoi').value,
+                dtThuocKHMoi: document.getElementById('dtThuocKHMoi').value,
+                dtThuocSPMoi: document.getElementById('dtThuocSPMoi').value,
+                dtNonDrugSPMoi: document.getElementById('dtNonDrugSPMoi').value,
+                tongThuTien: document.getElementById('tongThuTien').value,
+                donHangToanQuoc: document.getElementById('donHangToanQuoc').value,
+                donHangHCM: document.getElementById('donHangHCM').value,
+                phanTramHoaHongNonDrug: document.getElementById('phanTramHoaHongNonDrug').value,
+                phanTramHoaHongThuoc: document.getElementById('phanTramHoaHongThuoc').value,
+                tangTruongDoanhThu: ketQua.doanhThu,
+                tangTruongKhachHang: ketQua.khachHang,
+                tangTruongTiLe: ketQua.tiLe,
+                tangTruongDTThuoc: ketQua.dtThuoc,
+                tiLeLoiNhuan: ketQua.loiNhuan,
+                hoaHongNonDrug: ketQua.hoaHongNonDrug,
+                hoaHongThuoc: ketQua.hoaHongThuoc,
+            };
+
+            document.querySelectorAll('.analysisEditor').forEach((editor, index) => {
+                duLieu[`phanTich${index + 1}`] = editor.innerHTML;
+            });
+
+            localStorage.setItem('duLieuKPI', JSON.stringify(duLieu));
+            alert('Đã lưu dữ liệu!');
+        }
+
+        function xuatExcel() {
+            const ketQua = tinhTatCa();
+            const wb = XLSX.utils.book_new();
+            const ws_data = [
+                ["BÁO CÁO ĐÁNH GIÁ KPI THÁNG"],
+                [],
+                ["Thông tin khai báo"],
+                ["Người lập:", document.getElementById('nguoiLap').value],
+                ["Bộ phận lập:", document.getElementById('boPhanLap').value],
+                ["Ngày lập:", document.getElementById('ngayLap').value],
+                [],
+                ["Doanh Thu Nhóm không phải thuốc"],
+                ["Doanh thu kỳ trước:", document.getElementById('doanhThuTruoc').value],
+                ["Doanh thu kỳ này:", document.getElementById('doanhThuNay').value],
+                ["Tăng trưởng doanh thu:", ketQua.doanhThu + "%"],
+                ["Phân tích:", document.querySelector('.analysisEditor').innerText],
+                [],
+                ["Doanh Thu Thuần Nhóm Thuốc"],
+                ["Doanh thu thuần nhóm thuốc kỳ trước:", document.getElementById('dtThuocTruoc').value],
+                ["Doanh thu thuần nhóm thuốc kỳ này:", document.getElementById('dtThuocNay').value],
+                ["Tăng trưởng doanh thu thuần nhóm thuốc:", ketQua.dtThuoc + "%"],
+                ["Phân tích:", document.querySelectorAll('.analysisEditor')[1].innerText],
+                [],
+                ["Khách hàng đã đặt hàng trên ERP"],
+                ["Số khách hàng kỳ trước:", document.getElementById('khachHangTruoc').value],
+                ["Số khách hàng kỳ này:", document.getElementById('khachHangNay').value],
+                ["Tăng trưởng khách hàng:", ketQua.khachHang + "%"],
+                ["Phân tích:", document.querySelectorAll('.analysisEditor')[2].innerText],
+                [],
+                ["Số khách hàng mới chốt hợp tác/nhân viên"],
+                ["Số khách hàng mới nhà thuốc:", document.getElementById('khachHangMoiNhaThuoc').value],
+                ["Số khách hàng đại lý phân phối:", document.getElementById('khachHangDaiLy').value],
+                ["Số sản phẩm mới vào chuỗi thành công:", document.getElementById('sanPhamMoi').value],
+                ["Số khách hàng khác:", document.getElementById('khachHangKhac').value],
+                ["Phân tích:", document.querySelectorAll('.analysisEditor')[3].innerText],
+                [],
+                ["Tổng thu gồm doanh thu tiền mặt và số thu trả nợ trong kỳ và số đơn giao thành công"],
+                ["Tổng thu tiền kỳ này:", document.getElementById('tongThuTien').value],
+                ["Số đơn hàng giao thành công toàn quốc:", document.getElementById('donHangToanQuoc').value],
+                ["Số đơn hàng giao thành công tại TP.HCM:", document.getElementById('donHangHCM').value],
+                ["Phân tích:", document.querySelectorAll('.analysisEditor')[4].innerText],
+                [],
+                ["Tổng Chi Phí Bán Hàng / Doanh Thu Thuần"],
+                ["Tỉ lệ kỳ trước (%):", document.getElementById('tiLeTruoc').value],
+                ["Tỉ lệ kỳ này (%):", document.getElementById('tiLeNay').value],
+                ["Tăng trưởng tỉ lệ chi phí/doanh thu:", ketQua.tiLe + "%"],
+                ["Phân tích:", document.querySelectorAll('.analysisEditor')[5].innerText],
+                [],
+                ["Lợi Nhuận Gộp Kế Toán / Doanh Thu Thuần"],
+                ["Lợi nhuận kế toán:", document.getElementById('loiNhuanKeToan').value],
+                ["Doanh thu thuần:", document.getElementById('doanhThuThuan').value],
+                ["Tỉ lệ lợi nhuận gộp kế toán / doanh thu thuần:", ketQua.loiNhuan + "%"],
+                ["Phân tích:", document.querySelectorAll('.analysisEditor')[6].innerText],
+                [],
+                ["Doanh Thu Theo Nhóm Sản Phẩm từ việc khai thác khách hàng mới hay sản phẩm mới trong kỳ"],
+                ["Doanh thu nhóm non drug từ KH mới/NV:", document.getElementById('dtNonDrugKHMoi').value],
+                ["Doanh thu nhóm thuốc từ KH mới/NV:", document.getElementById('dtThuocKHMoi').value],
+                ["Doanh thu nhóm thuốc từ SP mới/NV:", document.getElementById('dtThuocSPMoi').value],
+                ["Doanh thu nhóm non drug từ SP/NV:", document.getElementById('dtNonDrugSPMoi').value],
+                ["Phân tích:", document.querySelectorAll('.analysisEditor')[7].innerText],
+                [],
+                ["Tính Hoa Hồng Doanh Số"],
+                ["% Hoa hồng cho nhóm non drug:", document.getElementById('phanTramHoaHongNonDrug').value],
+               ["% Hoa hồng cho nhóm thuốc:", document.getElementById('phanTramHoaHongThuoc').value],
+                ["Hoa hồng nhóm non drug:", ketQua.hoaHongNonDrug],
+                ["Hoa hồng nhóm thuốc:", ketQua.hoaHongThuoc],
+                ["Phân tích:", document.querySelectorAll('.analysisEditor')[8].innerText],
+                [],
+                ["Báo cáo KPI khác và phân tích cụ thể công việc giao trong kỳ theo bảng KPI đã lập"],
+                ["Phân tích:", document.querySelectorAll('.analysisEditor')[9].innerText],
+            ];
+
+            const ws = XLSX.utils.aoa_to_sheet(ws_data);
+            
+            ws['!cols'] = [{ wch: 50 }, { wch: 20 }];
+            ws['A1'].s = { font: { bold: true, sz: 16 }, alignment: { horizontal: "center" } };
+            
+            for (let i = 1; i <= ws_data.length; i++) {
+                if (ws_data[i-1].length === 1 && ws_data[i-1][0] !== "") {
+                    ws['A' + i].s = { font: { bold: true }, fill: { fgColor: { rgb: "DDDDDD" } } };
+                }
+            }
+
+            XLSX.utils.book_append_sheet(wb, ws, "KPI");
+            XLSX.writeFile(wb, "KPI_Report.xlsx");
+            alert('File Excel đã được xuất thành công!');
+        }
+
+        function xuatWord() {
+            const ketQua = tinhTatCa();
+            const nguoiLap = document.getElementById('nguoiLap').value;
+            const boPhanLap = document.getElementById('boPhanLap').value;
+            const ngayLap = document.getElementById('ngayLap').value;
+
+            let content = 'BÁO CÁO KPI\n\n';
+            content += `Người lập: ${nguoiLap}\n`;
+            content += `Bộ phận lập: ${boPhanLap}\n`;
+            content += `Ngày lập: ${ngayLap}\n\n`;
+            content += `Doanh thu kỳ trước: ${document.getElementById('doanhThuTruoc').value}\n`;
+            content += `Doanh thu kỳ này: ${document.getElementById('doanhThuNay').value}\n`;
+            content += `Tăng trưởng doanh thu: ${ketQua.doanhThu}%\n`;
+            content += `Phân tích: ${document.querySelector('.analysisEditor').innerText}\n\n`;
+            content += `Doanh thu thuần nhóm thuốc kỳ trước: ${document.getElementById('dtThuocTruoc').value}\n`;
+            content += `Doanh thu thuần nhóm thuốc kỳ này: ${document.getElementById('dtThuocNay').value}\n`;
+            content += `Tăng trưởng doanh thu thuần nhóm thuốc: ${ketQua.dtThuoc}%\n`;
+            content += `Phân tích: ${document.querySelectorAll('.analysisEditor')[1].innerText}\n\n`;
+            content += `Khách hàng kỳ trước: ${document.getElementById('khachHangTruoc').value}\n`;
+            content += `Khách hàng kỳ này: ${document.getElementById('khachHangNay').value}\n`;
+            content += `Tăng trưởng khách hàng: ${ketQua.khachHang}%\n`;
+            content += `Phân tích: ${document.querySelectorAll('.analysisEditor')[2].innerText}\n\n`;
+            content += `Số khách hàng mới nhà thuốc: ${document.getElementById('khachHangMoiNhaThuoc').value}\n`;
+            content += `Số khách hàng đại lý phân phối: ${document.getElementById('khachHangDaiLy').value}\n`;
+            content += `Số sản phẩm mới vào chuỗi thành công: ${document.getElementById('sanPhamMoi').value}\n`;
+            content += `Số khách hàng khác: ${document.getElementById('khachHangKhac').value}\n`;
+            content += `Phân tích: ${document.querySelectorAll('.analysisEditor')[3].innerText}\n\n`;
+            content += `Tổng thu tiền kỳ này: ${document.getElementById('tongThuTien').value}\n`;
+            content += `Số đơn hàng giao thành công toàn quốc: ${document.getElementById('donHangToanQuoc').value}\n`;
+            content += `Số đơn hàng giao thành công tại TP.HCM: ${document.getElementById('donHangHCM').value}\n`;
+            content += `Phân tích: ${document.querySelectorAll('.analysisEditor')[4].innerText}\n\n`;
+            content += `Tỉ lệ chi phí/doanh thu kỳ trước: ${document.getElementById('tiLeTruoc').value}%\n`;
+            content += `Tỉ lệ chi phí/doanh thu kỳ này: ${document.getElementById('tiLeNay').value}%\n`;
+            content += `Tăng trưởng tỉ lệ chi phí/doanh thu: ${ketQua.tiLe}%\n`;
+            content += `Phân tích: ${document.querySelectorAll('.analysisEditor')[5].innerText}\n\n`;
+            content += `Lợi nhuận kế toán: ${document.getElementById('loiNhuanKeToan').value}\n`;
+            content += `Doanh thu thuần: ${document.getElementById('doanhThuThuan').value}\n`;
+            content += `Tỉ lệ lợi nhuận gộp kế toán / doanh thu thuần: ${ketQua.loiNhuan}%\n`;
+            content += `Phân tích: ${document.querySelectorAll('.analysisEditor')[6].innerText}\n\n`;
+            content += `Doanh thu nhóm non drug từ KH mới/NV: ${document.getElementById('dtNonDrugKHMoi').value}\n`;
+            content += `Doanh thu nhóm thuốc từ KH mới/NV: ${document.getElementById('dtThuocKHMoi').value}\n`;
+            content += `Doanh thu nhóm thuốc từ SP mới/NV: ${document.getElementById('dtThuocSPMoi').value}\n`;
+            content += `Doanh thu nhóm non drug từ SP/NV: ${document.getElementById('dtNonDrugSPMoi').value}\n`;
+            content += `Phân tích: ${document.querySelectorAll('.analysisEditor')[7].innerText}\n\n`;
+            content += `% Hoa hồng cho nhóm non drug: ${document.getElementById('phanTramHoaHongNonDrug').value}%\n`;
+            content += `% Hoa hồng cho nhóm thuốc: ${document.getElementById('phanTramHoaHongThuoc').value}%\n`;
+            content += `Hoa hồng nhóm non drug: ${ketQua.hoaHongNonDrug}\n`;
+            content += `Hoa hồng nhóm thuốc: ${ketQua.hoaHongThuoc}\n`;
+            content += `Phân tích: ${document.querySelectorAll('.analysisEditor')[8].innerText}\n\n`;
+            content += `Báo cáo KPI khác và phân tích cụ thể công việc giao trong kỳ:\n`;
+            content += `${document.querySelectorAll('.analysisEditor')[9].innerText}\n\n`;
+            
+            const blob = new Blob([content], {type: "application/msword"});
+            saveAs(blob, "KPI_Report.doc");
+            alert('File Word đã được xuất thành công!');
+        }
+
+        function generateEmailLink() {
+            const ketQua = tinhTatCa();
+            const nguoiLap = document.getElementById('nguoiLap').value;
+            const boPhanLap = document.getElementById('boPhanLap').value;
+            const ngayLap = document.getElementById('ngayLap').value;
+
+            let subject = encodeURIComponent(`Báo Cáo KPI - ${ngayLap}`);
+            let body = encodeURIComponent(`Kính gửi,
+
+Báo cáo KPI ngày ${ngayLap}:
+
+Em xin gởi file báo cáo đính kèm - rất mong BGĐ/ Cấp quản lý góp ý hoàn thiện
+Trân trọng.
+
+Trân trọng,
+${nguoiLap}`);
+
+            let mailtoLink = `mailto:baocaoideco@gmail.com;uyenhuongideco@gmail.com;minhkhanh.nt20232ideco.com.vn;minhtriet.nt2023@gmail.com?subject=${subject}&body=${body}`;
+
+            let container = document.getElementById('emailLinkContainer');
+            container.innerHTML = `<a href="${mailtoLink}" id="openEmailBtn" target="_blank">Mở Ứng Dụng Email</a>`;
+        }
+
+        // Thêm placeholder cho các phần tử phân tích
+        document.querySelectorAll('.analysisEditor').forEach(editor => {
+            editor.addEventListener('focus', function() {
+                if (this.innerHTML === this.getAttribute('data-placeholder')) {
+                    this.innerHTML = '';
+                }
+            });
+
+            editor.addEventListener('blur', function() {
+                if (this.innerHTML === '') {
+                    this.innerHTML = this.getAttribute('data-placeholder');
+                }
+            });
+
+            // Khởi tạo nội dung placeholder
+            if (editor.innerHTML === '') {
+                editor.innerHTML = editor.getAttribute('data-placeholder');
+            }
+        });
+
+        // Popup functionality
+        const popupButton = document.getElementById('popupButton');
+        const popupContainer = document.getElementById('popupContainer');
+        const closePopup = document.getElementById('closePopup');
+        const expandPopup = document.getElementById('expandPopup');
+        const popupHeader = document.getElementById('popupHeader');
+        const resizer = document.querySelector('.resizer');
+
+        let isExpanded = false;
+        let isDragging = false;
+        let currentX, currentY, initialX, initialY, xOffset = 0, yOffset = 0;
+
+        popupButton.addEventListener('click', () => {
+            if (popupContainer.style.display === 'none' || popupContainer.style.display === '') {
+                popupContainer.style.display = 'block';
+                popupButton.textContent = '-';
+            } else {
+                popupContainer.style.display = 'none';
+                popupButton.textContent = '+';
+            }
+        });
+
+        closePopup.addEventListener('click', () => {
+            popupContainer.style.display = 'none';
+            popupButton.textContent = '+';
+        });
+
+        expandPopup.addEventListener('click', () => {
+            if (isExpanded) {
+                popupContainer.style.width = '350px';
+                popupContainer.style.height = '500px';
+                popupContainer.style.top = '';
+                popupContainer.style.left = '';
+                popupContainer.style.right = '20px';
+                popupContainer.style.bottom = '90px';
+                isExpanded = false;
+            } else {
+                popupContainer.style.width = '80%';
+                popupContainer.style.height = '80%';
+                popupContainer.style.top = '10%';
+                popupContainer.style.left = '10%';
+                popupContainer.style.right = '';
+                popupContainer.style.bottom = '';
+                isExpanded = true;
+            }
+        });
+
+        popupHeader.addEventListener('mousedown', dragStart);
+        document.addEventListener('mousemove', drag);
+        document.addEventListener('mouseup', dragEnd);
+
+        function dragStart(e) {
+            initialX = e.clientX - xOffset;
+            initialY = e.clientY - yOffset;
+            if (e.target === popupHeader) {
+                isDragging = true;
+            }
+        }
+
+        function drag(e) {
+            if (isDragging) {
+                e.preventDefault();
+                currentX = e.clientX - initialX;
+                currentY = e.clientY - initialY;
+                xOffset = currentX;
+                yOffset = currentY;
+                setTranslate(currentX, currentY, popupContainer);
+            }
+        }
+
+        function dragEnd(e) {
+            initialX = currentX;
+            initialY = currentY;
+            isDragging = false;
+        }
+
+        function setTranslate(xPos, yPos, el) {
+            el.style.transform = `translate3d(${xPos}px, ${yPos}px, 0)`;
+        }
+
+        resizer.addEventListener('mousedown', initResize, false);
+
+        function initResize(e) {
+            window.addEventListener('mousemove', Resize, false);
+            window.addEventListener('mouseup', stopResize, false);
+            isResizing = true;
+        }
+
+        function Resize(e) {
+            if (isResizing) {
+                const width = e.clientX - popupContainer.offsetLeft;
+                const height = e.clientY - popupContainer.offsetTop;
+                popupContainer.style.width = width + 'px';
+                popupContainer.style.height = height + 'px';
+            }
+        }
+
+        function stopResize(e) {
+            isResizing = false;
+            window.removeEventListener('mousemove', Resize, false);
+            window.removeEventListener('mouseup', stopResize, false);
+        }
+    </script>
+    <script src="https://bots.easy-peasy.ai/chat.min.js" data-chat-url="https://bots.easy-peasy.ai/bot/c5b8e437-578e-4898-af40-e8c72a6d9f49" data-btn-position="bottom-left" data-widget-btn-color="#6366f1 " defer> </script>
+</body>
+</html>
